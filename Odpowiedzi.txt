@@ -1,0 +1,77 @@
+﻿6. Zakladajac, ze parametry metody z zadania 3 pobieramy bezpośrednio z bazy danych. Czy
+znasz jakies sposoby na optymalizacje liczby zapytan SQL w tego typu przypadkach? Wymien
+i opisz krotko kazdy z nich.
+
+Odp.:
+Optymalizacja zapytan SQL podczas bezposredniego pobierania paramatrow z bazy danych:
+
+/////////////////////////////
+
+Eager Loading (ladowanie z wyprzedzeniem)
+
+Opis: Pobranie wszystkich powiazanych danych w jednym zapytaniu zamiast pobierania ich osobno w petli.
+
+Przyklad EF6:
+var employees = db.Employees.Include(e => e.Vacations).ToList();
+
+Zaleta: Redukcja liczby zapytan SQL; wszystkie dane sa w pamieci.
+
+Wada: Moze pobrac wiecej danych, niz potrzeba, jesli relacje sa duze.
+
+/////////////////////////////
+2. Lazy Loading (ladowanie na zadanie)
+
+Opis: Dane powiazane sa pobierane dopiero wtedy, gdy naprawde sa potrzebne.
+
+Uzycie: Domyslnie w EF, jesli wlasciwosc nawigacyjna jest wirtualna.
+
+Zaleta: Nie pobiera niepotrzebnych danych.
+
+Wada: Moze generowac wiele zapytan w petli.
+
+/////////////////////////////
+3. Batching / Laczenie zapytan
+
+Opis: Grupowanie wielu operacji w jednym zapytaniu lub wykonanie WHERE IN zamiast osobnych zapytan dla kazdego elementu.
+
+Przyklad: Pobranie urlopow dla wszystkich pracownikow jednym zapytaniem:
+var vacations = db.Vacations
+.Where(v => employeeIds.Contains(v.EmployeeId))
+.ToList();
+
+Zaleta: Zmniejsza liczbe wywolan do bazy.
+
+/////////////////////////////
+4. Projekcja (Select / Anonymous Types)
+
+Opis: Pobranie tylko potrzebnych kolumn, zamiast calych obiektow.
+
+Przyklad:
+var data = db.Vacations
+.Where(v => v.DateSince.Year == 2025)
+.Select(v => new { v.EmployeeId, v.DateSince, v.DateUntil })
+.ToList();
+
+Zaleta: Mniejsze przesylanie danych i szybsze zapytania.
+
+/////////////////////////////
+5. Cache / pamiec podreczna
+
+Opis: Jesli dane nie zmieniaja sie czesto, mozna je wczytac raz i przechowywac w pamieci.
+
+Przyklad: Lista pracownikow lub pakietow urlopowych moze byc przechowywana w kolekcji zamiast pobierania przy kazdym wywolaniu.
+Zaleta: Brak zapytan do bazy przy kazdym wywolaniu metody.
+
+Wada: Trzeba pamietac o odswiezaniu danych.
+
+/////////////////////////////
+6. Query optimization / agregacje po stronie SQL
+
+Opis: Obliczenia typu „sumowanie dni urlopu” wykonane w SQL zamiast w pamieci.
+
+Przyklad EF:
+var daysUsed = db.Vacations
+.Where(v => v.EmployeeId == empId && v.DateSince.Year == currentYear)
+.Sum(v => DbFunctions.DiffDays(v.DateSince, v.DateUntil) + 1);
+
+Zaleta: SQL jest zoptymalizowany do agregacji; mniej danych przeslanych do aplikacji.
